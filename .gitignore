@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# venv
+.venv/
+venv/
+env/
+
+# simulator outputs
+out/
+*.json
+
+# EyeNavGS dataset (not distributed with this repo)
+EyeNavGS_Rutgers_Dataset/
+*.csv
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
