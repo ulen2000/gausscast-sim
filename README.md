@@ -11,6 +11,10 @@ dependencies. It is a compact, self-contained model meant to study the **deliver
 mechanism** (shared base + supplements, closure-aware admission, request aggregation,
 asymmetric caching), not a 3DGS renderer.
 
+> **Note.** This repository currently provides the Python trace-driven delivery simulator.
+> The Mini-NDN / NFD emulation harness (named-data forwarders and the colocated planning
+> proxy) is still being cleaned up and will be added in a future update.
+
 ## What it models
 
 Each 200 ms planning cycle over a 60 s window, for a group of users sampled from the real
