@@ -112,17 +112,50 @@ public-key verifies/second and amortized CPU per block for (a) per-block signatu
 (b) a digest-linked manifest that amortizes one signature over a `fanout` of blocks. All
 numbers are derived from the measured primitives and the chosen fanout.
 
+### High-level controller (PPO budget-ratio adaptation)
+
+The deterministic closure-aware planner enforces correctness; an optional controller tunes
+one high-level knob — the **shared budget ratio** (base vs supplement split) — as bandwidth
+and overlap drift. First measure the simulator reward surface, then train a real PPO policy
+and compare it against Static / RuleAdaptive / OnlineGrid / OracleTuned:
+
+```bash
+pip install -r requirements-rl.txt          # stable-baselines3, gymnasium, torch
+GAUSSCAST_OUT=$PWD/out python -m gausscast_sim.controllers       # measure reward surface
+GAUSSCAST_OUT=$PWD/out python -m gausscast_sim.ppo_controller --timesteps 60000
+```
+
+Trains a real `stable-baselines3` PPO on the measured surface (GPU if available) and prints
+each controller's utility / upstream / late / Jain / inference time relative to the Static
+planner; saves `out/controllers.json`.
+
+### Cross-region WAN pilot
+
+Runs the same planner across two cloud regions over a real wide-area link. Emit the transfer
+manifest locally, then deploy the origin/edge scripts — see [`wan_pilot/README.md`](wan_pilot/README.md):
+
+```bash
+GAUSSCAST_OUT=$PWD/out python -m gausscast_sim.wan_emit_manifest     # -> out/wan_manifest.json
+```
+
 ## Layout
 
 ```
 gausscast_sim/
-  scene_model.py      cell/layer byte sizes + layered-quality prior (per scene)
-  demand.py           per-cycle, per-user retrieval demand from the real traces
-  delivery_sim.py     the simulator: run(), Net, Policy, policy(), EdgeCache
-  run_experiments.py  main delivery-result grid runner
-  churn.py            versioned-manifest invalidation microbenchmark
-  crypto_overhead.py  genuine Ed25519/SHA-256 throughput measurement
-  eyenavgs_lib.py     EyeNavGS trace loader + spatial cell/frustum model
+  scene_model.py        cell/layer byte sizes + layered-quality prior (per scene)
+  demand.py             per-cycle, per-user retrieval demand from the real traces
+  delivery_sim.py       the simulator: run(), Net, Policy, policy(), EdgeCache
+  run_experiments.py    main delivery-result grid runner
+  churn.py              versioned-manifest invalidation microbenchmark
+  crypto_overhead.py    genuine Ed25519/SHA-256 throughput measurement
+  controllers.py        measures the budget-ratio reward surface
+  ppo_controller.py     trains a real PPO controller and compares baselines
+  wan_emit_manifest.py  emits the cross-region WAN transfer manifest
+  eyenavgs_lib.py       EyeNavGS trace loader + spatial cell/frustum model
+wan_pilot/
+  wan_origin.py         origin HTTP server (stdlib only, deploy to region A)
+  wan_edge.py           edge client: measures RTT / throughput / ratio / TTFF
+  README.md             two-region deployment guide
 ```
 
 ## Notes on methodology

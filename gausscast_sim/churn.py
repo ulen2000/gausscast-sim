@@ -1,13 +1,13 @@
 """
 churn.py
 --------
-Versioned-manifest invalidation microbenchmark (paper Table tab:churn-like).
+Versioned-manifest invalidation microbenchmark.
 Warm the edge cache with a GC-Full run, then emulate publishing new chunk
 versions for a fraction f of resident chunks per minute. Changed chunks get new
 content digests, so their cached copies are invalidated and must be refetched;
 unchanged subtrees keep their digests and stay resident. We measure the realized
 hit ratio and the TTFF after invalidation, plus the delta bytes that must be
-refetched. Nothing is tuned to the paper's printed values; f is the only knob.
+refetched. f is the only knob.
 """
 import os, json
 import numpy as np
@@ -65,8 +65,7 @@ def churn_run(f):
 
 
 def main():
-    print("=== CHURN MICROBENCHMARK (measured vs paper) ===")
-    print("paper: 1% inv1.1 d0.4 hit.49 ttff.56 | 5% inv5.3 hit.46 | 10% inv10.8 hit.42 ttff.63")
+    print("=== CHURN MICROBENCHMARK ===")
     res = {}
     for f in [0.01, 0.05, 0.10]:
         r = churn_run(f)

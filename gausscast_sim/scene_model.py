@@ -2,7 +2,7 @@
 scene_model.py
 --------------
 Cell / layer / chunk retrieval-block model for the three GaussCast evaluation
-scenes, calibrated to Table tab:scene-card of sn-article-final.tex:
+scenes, calibrated to their published scene-card values:
 
   Scene  Dataset        #Gauss  Comp.size  #Cells  #Lyr  L0/L1 size
   Room   Mip-NeRF360    1.6 M   38 MB      96      3     6.1 MB
@@ -18,9 +18,9 @@ Modeling choices (documented, not tuned to printed result values):
     content weight drawn from a log-normal (seeded), so cells are heterogeneous
     but reproducible. A retrieval block is one (cell, layer) unit; large blocks
     are conceptually segmented into 0.5-2 MB chunks for transfer but scheduled
-    and cached at block granularity (paper Sec. Offline Publishing).
+    and cached at block granularity.
   * DEPENDENCY (full-prefix closure): block (c, l) requires (c, 0..l-1). This is
-    the conservative full-prefix dependency the paper's sparsity study varies.
+    the conservative full-prefix dependency the sparsity study varies.
   * Per-LAYER quality prior I(l): marginal PSNR gain of adding layer l, a
     non-increasing, diminishing-returns curve normalized to (0,1]. Used both as
     the planner's layer utility and to DERIVE rendered PSNR/SSIM/LPIPS from the
@@ -72,7 +72,7 @@ def layer_quality_prior(n_layers):
     """Marginal PSNR gain per added layer (diminishing returns), and the
     cumulative PSNR a user sees holding layers 0..k. Calibrated to a typical
     layered-3DGS curve: base layer ~24 dB, saturating near ~30 dB. These are the
-    offline per-layer PSNR improvements the paper says I(r) is derived from."""
+    offline per-layer PSNR improvements that the layer utility I(r) is derived from."""
     # cumulative PSNR after completing layers 0..k  (k = -1 -> nothing)
     # base (L0/L1) gives a coarse image; each refinement adds diminishing dB.
     base = 24.0

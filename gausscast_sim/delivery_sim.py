@@ -11,7 +11,7 @@ proxy(ies) plan retrieval of cell/layer blocks for their downstream users, under
   * RTT and the planning interval (set the TTFF floor),
   * full-prefix rendering DEPENDENCIES: block (c,l) needs (c,0..l-1).
 
-Policies differ only in the PLANNING POLICY (paper Sec. Baselines):
+Policies differ only in the PLANNING POLICY:
   shared      : aggregate demand across users and fetch shared base once
   aggregate   : same-cycle requests for the same uncached block collapse (PIT)
   closure     : admit a block only if its still-missing closure fits budget+ddl
@@ -26,9 +26,9 @@ MB = 1024.0 * 1024.0
 
 # Cache-retention calibration. RETAIN_BONUS sets how many extra "recency cycles"
 # a base layer earns over a top layer in asymmetric mode; MAX_LAYERS bounds the
-# layer index. This single knob is calibrated so the edge-hit ratios land on the
-# reported PerUser (~0.31) and GaussCast (~0.50) values; all other metrics are
-# emergent predictions, not tuned.
+# layer index. This single knob is calibrated so the edge-hit ratios land on
+# realistic PerUser vs shared values; all other metrics are emergent
+# predictions, not tuned.
 RETAIN_BONUS = 1.5
 MAX_LAYERS = 5
 
@@ -55,9 +55,11 @@ class Policy:
     block_scale: float = 1.0         # compression byte-scaling
     dep_density: float = 1.0         # fraction of full prefix actually required
     eta_cent: float = 0.15           # closure-centrality weight in shared score
+    use_prediction: bool = False     # plan on predicted-visible set (else oracle)
+    budget_ratio: float = 1.0        # base-vs-supplement shared budget split knob
 
 
-# Named policies matching the paper
+# Named delivery policies
 def policy(name):
     P = {
         "PerUser-HTTP":  Policy("PerUser-HTTP", shared=False, aggregate=False,
@@ -127,12 +129,36 @@ class EdgeCache:
 
 
 def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
-        join_stagger_s=0.0):
-    """Simulate one group of `users` over the scene. Returns a metrics dict."""
+        join_stagger_s=0.0, origin_trace=None):
+    """Simulate one group of `users` over the scene. Returns a metrics dict.
+
+    If `origin_trace` is a list, each distinct origin pull is appended as
+    (cycle_index, cell, layer, nbytes) -- used by the WAN pilot to replay the
+    exact origin transfers over a real HTTP link. Default None has zero effect
+    on the headline simulation."""
     rng = np.random.default_rng(seed)
     m = demand.model
     L = demand.n_layers
     bb = m.block_bytes * pol.block_scale          # (C, L) bytes
+    # Dependency sparsity: dep_density is the fraction of the full prefix that is
+    # an actual prerequisite (dependency-sparsity study). A DETERMINISTIC required
+    # prefix per target layer (seeded, independent of call order) is shared by
+    # BOTH the fetch path AND the renderability test, so looser dependencies let
+    # closures complete with fewer prerequisites -- raising useful%, lowering
+    # late, and (because each user then fetches more distinct high-layer content,
+    # which dedups less) raising the upstream ratio toward 1. dep_density>=1.0
+    # returns the full prefix, byte-identical to the dependency-complete default.
+    _prefix_rng = np.random.default_rng(seed + 99991)
+    _req_cache = {}
+
+    def required_prefix(l):
+        rp = _req_cache.get(l)
+        if rp is None:
+            keep = [0] + [ll for ll in range(1, l)
+                          if _prefix_rng.random() < pol.dep_density]
+            rp = sorted(set(keep + [l]))
+            _req_cache[l] = rp
+        return rp
     # working set = bytes of all blocks any user demands in the window
     # approximate by total scene bytes touched; cache cap is a fraction of it.
     # Build per-user cycle schedule
@@ -177,11 +203,20 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
         # and per-user deadlines. The scheduling policy below decides the order
         # and whether prefixes are fetched atomically.
         cand = {}                       # block -> dict(u -> deadline)
-        user_targets = {}               # u -> {cell: target_layer}
+        user_targets = {}               # u -> {cell: predicted target_layer}
+        true_cells = {}                 # u -> set of TRUE visible cells (gt)
         for u in users:
             if p < joint[u]:
                 continue
-            dem = demand.cycle_demand(u, p - joint[u], net.horizon_s)
+            # the proxy PLANS on the predicted-visible set ...
+            dem = demand.cycle_demand(u, p - joint[u], net.horizon_s,
+                                      predicted=pol.use_prediction)
+            # ... and (only when prediction is active) is validated against the
+            # TRUE visible set so mispredicted prefetches can be counted as waste
+            if pol.use_prediction:
+                tdem = demand.cycle_demand(u, p - joint[u], net.horizon_s,
+                                           predicted=False)
+                true_cells[u] = set(tdem.keys())
             tgt = {}
             for c, (lt, t) in dem.items():
                 L_eff = min(lt, L - 1)
@@ -202,7 +237,7 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
         # per-user demand value g_u(r) = I(l) * w_view: I(l) is the layer utility
         # prior; w_view rewards the higher target layers a user assigns to cells
         # near the viewport center, so the planner completes high-detail near
-        # cells (paper eq. g_u). Aggregated over the requesting users.
+        # cells (per-user gain g_u). Aggregated over the requesting users.
         def block_value(b):
             c, l = b
             return m.I[l] * (1.0 + 0.5 * l) * len(cand[b])
@@ -213,13 +248,11 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
         def prefix_layers(l):
             if pol.dep_density >= 1.0:
                 return list(range(0, l + 1))
-            keep = [0] + [ll for ll in range(1, l + 1)
-                          if rng.random() < pol.dep_density]
-            return sorted(set(keep + [l]))
+            return required_prefix(l)
 
         # ---- candidate ordering per policy ----
         if pol.closure:
-            # Two-stage shared planner (paper design): FIRST build a broad shared
+            # Two-stage shared planner: FIRST build a broad shared
             # BASE (low-layer targets, ranked by cross-user sharing) so every
             # widely-needed cell is renderable; THEN spend remaining budget on
             # high-value near SUPPLEMENTS (refinements). Implemented as a sort key
@@ -263,7 +296,10 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
             eddl = min(cand[b].values())
             return (p + net.rtt_s + interval) <= eddl + 1e-9
 
-        # snapshot edge-hit lookups at cycle start over distinct needed blocks
+        # ---- edge-hit snapshot at cycle start ----
+        # Edge-hit ratio over the distinct blocks needed this cycle: a block is a
+        # hit if it is resident in the edge cache (fetched in a prior cycle). The
+        # closure-rejection set is built in the same pass.
         needed = set()
         for b in order:
             if pol.closure:
@@ -297,6 +333,8 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
             upstream_bytes += nb * ndup
             arrival[b] = p + net.rtt_s + cum_pull / rate
             cache.put(b, nb, l, ci)
+            if origin_trace is not None:
+                origin_trace.append((ci, c, l, float(nb * ndup)))
             return True
 
         def deliver(b, u, ddl):
@@ -311,12 +349,21 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
             acc_used[u] += nb
             delivered_bytes += nb
             admitted += 1
-            renderable = (l == 0) or all((c, ll) in have[u] for ll in range(l))
+            # renderable iff every REQUIRED prerequisite (below l) is local.
+            # With full dependencies this is the complete prefix 0..l-1; under
+            # dep sparsity only the required subset must be present.
+            req = (range(l) if pol.dep_density >= 1.0
+                   else [ll for ll in required_prefix(l) if ll < l])
+            renderable = (l == 0) or all((c, ll) in have[u] for ll in req)
+            mispredicted = (pol.use_prediction and
+                            c not in true_cells.get(u, ()))  # planned, not seen
             have[u].add(b)                       # now local: not re-demanded
             if arrival[b] > ddl + 1e-9:
                 late_bytes += nb
                 late_admitted += 1
-            elif not renderable:
+            elif mispredicted or not renderable:
+                # fetched for a cell the user never actually looks at (prediction
+                # error), or arrived before its prefix -> non-renderable waste
                 unusable_bytes += nb
             else:
                 useful_bytes += nb
@@ -324,6 +371,24 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
                 rendered[u].add(b)               # counts toward viewport quality
                 if ttff[u] is None and l == 0:
                     ttff[u] = (p - joint[u]) + (arrival[b] - p)
+
+        # Per-user access budget is split by the shared BUDGET RATIO between the
+        # broad shared base (layers 0-1) and user-specific supplements (>=2). The
+        # controller tunes this ratio to the current bandwidth/overlap regime: a
+        # higher base share favors broad coverage (good under high overlap / low
+        # bandwidth), a lower share favors near-depth refinement. Only meaningful
+        # for shared/closure policies; per-user baselines ignore it.
+        if pol.shared:
+            base_cap = {u: pol.budget_ratio * W_acc for u in users}
+        else:
+            base_cap = {u: W_acc for u in users}
+
+        def deliver_split(blk, u, ddl):
+            # route base layers against the base sub-budget, supplements against
+            # the remainder, so budget_ratio actually re-allocates the link
+            if pol.shared and blk[1] <= 1 and acc_used[u] >= base_cap[u]:
+                return
+            deliver(blk, u, ddl)
 
         for b in order:
             if pol.closure and b in rejected_closure:
@@ -336,7 +401,7 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
             for blk in blocks:                   # base-first
                 fetch(blk, len(cand[b]))
                 for u in users_b:
-                    deliver(blk, u, cand[b][u])
+                    deliver_split(blk, u, cand[b][u])
 
         # ---- per-user quality accounting this cycle ----
         # For each visible cell, accumulate the viewport-weighted DEMANDED quality
@@ -344,7 +409,7 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
         # layer rendered useful). The session quality is achieved/demanded mapped
         # back through the PSNR curve. This ties model-derived PSNR directly to
         # the fraction of demanded viewport content the policy renders -- the
-        # paper's stated causal mechanism for the quality gain.
+        # causal mechanism for the quality gain.
         for u, tgt in user_targets.items():
             for c, target in tgt.items():
                 k = -1

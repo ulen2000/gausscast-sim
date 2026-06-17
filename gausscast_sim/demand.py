@@ -5,7 +5,7 @@ Build the per-planning-cycle, per-user retrieval DEMAND for a scene from the
 real EyeNavGS traces. This is the input to the delivery simulator.
 
 For each scene we build a PARTITION grid whose cell count approximates the
-paper's #Cells (Table tab:scene-card: 96 / 128 / 384). The set of cells ever
+scene's published #Cells (96 / 128 / 384). The set of cells ever
 visible across all users defines the scene's active cells; the SceneModel's
 byte budget is distributed over exactly those cells.
 
@@ -18,7 +18,7 @@ PLAN_INTERVAL over a WINDOW), demand over the horizon [p, p+H] is:
   * useful deadline t_ddl(c): first playback time in the horizon at which c
     becomes visible (earliest-visibility), used by the planner's deadline test.
 
-The constant-velocity + gaze predictor of the paper is what the proxy actually
+The constant-velocity + gaze predictor is what the proxy actually
 uses to FORECAST these sets; ground truth comes from the trace. We expose both
 so the prediction-horizon study can measure realized prediction error.
 """
@@ -32,7 +32,7 @@ MARGIN = 1.0
 
 
 def build_partition(scene):
-    """Grid whose total cell count is closest to the paper's #Cells."""
+    """Grid whose total cell count is closest to the scene's #Cells."""
     target = SCENE_CARD[scene]["cells"]
     bmin, bmax = E.scene_bounds(scene, margin=MARGIN)
     span = bmax - bmin
@@ -41,7 +41,7 @@ def build_partition(scene):
     cs = (vol / target) ** (1.0 / 3.0)
     # one refinement pass: the set of *visible* cells overshoots the raw grid
     # product because frustums reach across the box, so coarsen slightly to land
-    # the active-cell count near the paper's #Cells.
+    # the active-cell count near the scene's #Cells.
     grid = E.CellGrid(bmin, bmax, cs * 1.18)
     return grid
 
@@ -140,15 +140,22 @@ class Demand:
         self._wscache[key] = ws
         return ws
 
-    def cycle_demand(self, u, p, horizon):
+    def cycle_demand(self, u, p, horizon, predicted=False):
         """Cached per-user, per-cycle demand. Returns dict {cell: [target,t]}.
-        Computed once per (user, rounded p, horizon) and memoized so repeated
-        simulation runs over the same traces are fast."""
-        key = (u, round(p, 3), round(horizon, 3))
+        Computed once per (user, rounded p, horizon, predicted) and memoized so
+        repeated simulation runs over the same traces are fast.
+
+        predicted=False -> TRUE demand from ground-truth future poses (what
+        actually becomes visible). predicted=True -> demand the proxy PLANS on,
+        derived from a constant-velocity (position) + gaze-hold (forward)
+        prediction of the pose over the horizon. The gap between the two is the
+        realized prediction error the horizon study exercises."""
+        key = (u, round(p, 3), round(horizon, 3), predicted)
         c = self._dcache.get(key)
         if c is not None:
             return c
-        out = self._compute_cycle_demand(u, p, horizon)
+        out = (self._compute_predicted_demand(u, p, horizon) if predicted
+               else self._compute_cycle_demand(u, p, horizon))
         self._dcache[key] = out
         return out
 
@@ -176,6 +183,49 @@ class Demand:
                 else:
                     out[lc][0] = max(out[lc][0], L)
                     out[lc][1] = min(out[lc][1], t)
+        return out
+
+    def _compute_predicted_demand(self, u, p, horizon):
+        """Demand the proxy plans on, from a constant-velocity + gaze-hold pose
+        prediction. At cycle start the proxy knows poses up to p; it extrapolates
+        position linearly from the recent velocity and HOLDS the current forward
+        direction (gaze), then computes visibility over the horizon from that
+        predicted trajectory. Longer horizons accumulate more drift, so the
+        predicted-visible set diverges from the true-visible set."""
+        d = self.users[u]
+        T = d["T"]
+        i0 = int(np.clip(np.searchsorted(T, p, "left"), 1, len(T) - 1))
+        # recent velocity over ~0.2 s lookback for the constant-velocity term
+        back = i0
+        while back > 0 and T[i0] - T[back] < 0.2:
+            back -= 1
+        dt_b = max(1e-3, T[i0] - T[back])
+        vel = (d["P"][i0] - d["P"][back]) / dt_b
+        pos0 = d["P"][i0]
+        fwd0 = d["F"][i0]            # gaze/forward held over the horizon
+        fov0 = d["FOV"][i0]
+        lo = np.searchsorted(T, p, "left")
+        hi = np.searchsorted(T, p + horizon, "right")
+        if hi <= lo:
+            k = min(max(lo, 0), len(T) - 1)
+            lo, hi = k, k + 1
+        out = {}
+        for i in range(lo, hi):
+            dt = T[i] - p
+            pred_pos = pos0 + vel * dt
+            vc, dist = self._visible(pred_pos, fwd0, fov0)
+            if len(vc) == 0:
+                continue
+            lt = proximity_layer(dist, self.n_layers)
+            for cid, L in zip(vc.tolist(), lt.tolist()):
+                lc = self.remap.get(cid)
+                if lc is None:
+                    continue
+                if lc not in out:
+                    out[lc] = [L, dt]
+                else:
+                    out[lc][0] = max(out[lc][0], L)
+                    out[lc][1] = min(out[lc][1], dt)
         return out
 
     def session_users(self):

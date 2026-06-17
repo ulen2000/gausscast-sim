@@ -30,7 +30,7 @@ CSV columns (per the EyeNavGS dataset README):
 
 Coordinate convention: Y is vertical (gravity-aligned after scene quaternion),
 the XZ plane is the horizontal floor plane. This matches the small Y span seen
-in truck/berlin and is the plane the paper plots.
+in truck/berlin and is the horizontal plane used for spatial partitioning.
 """
 
 import os
@@ -52,7 +52,7 @@ DATASET_ROOT = os.environ.get(
 DATASET_DIR = os.path.join(DATASET_ROOT, "dataset")
 SCENE_SETTING_CSV = os.path.join(DATASET_ROOT, "scene_setting.csv")
 
-# The three evaluation scenes used in the GaussCast paper.
+# The three GaussCast evaluation scenes.
 EVAL_SCENES = ["room", "truck", "berlin"]
 
 # Users present for every evaluation scene (Rutgers site: user101..user122).
@@ -209,7 +209,7 @@ class CellGrid:
 
     A "cell" is one voxel. "Visible cells" for a frame are voxels whose center
     lies inside the view frustum (within range R and within the half-FOV cone).
-    This is the spatial unit the paper calls cell; lower-layer prerequisites
+    This is the spatial unit referred to as a cell; lower-layer prerequisites
     (L0/L1) correspond to coarser cells (the grid at half resolution).
 
     All parameters are explicit so the model is reproducible.

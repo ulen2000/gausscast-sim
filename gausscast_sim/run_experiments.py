@@ -2,18 +2,17 @@
 run_experiments.py
 ------------------
 Drives the GaussCast delivery simulator across scenes, trace windows, network
-seeds, and concurrency to reproduce the paper's evaluation tables. All demand
-comes from the real EyeNavGS traces (via demand.py). Results are printed next to
-the paper's printed values and saved to out/sim_results.json.
+seeds, and concurrency. All demand comes from the real EyeNavGS traces (via
+demand.py). Results are printed and saved to out/sim_results.json.
 
-Replay protocol (mirrors paper Sec. Prototype and Setup):
+Replay protocol:
   * 3 scenes: Room, Truck, Berlin
   * groups of N users sampled from the 22 real participants per scene
   * network tiers cycled across seeds: access 10/20/30 Mbps, upstream
     150/225/300 Mbps; RTT 18 ms; 200 ms planning; 1 s horizon; 60 s windows
   * edge cache = 20% of the measured active working set
 Each (scene, seed) is one paired sample; baselines share the scene/seed so
-ratios are paired exactly as the paper specifies.
+ratios are paired exactly.
 """
 import os, json
 import numpy as np
@@ -84,40 +83,22 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     json.dump(agg, open(os.path.join(OUT, "sim_results.json"), "w"), indent=2)
 
-    paper = {
-        "PerUser-HTTP": dict(up=1.00, hit=0.31, ttff=0.75, late=0.184, jain=0.887,
-                             useful=76.8, lateb=15.3, unus=7.9, psnr=28.05),
-        "PerUser-ICN":  dict(up=0.93, hit=0.37, ttff=0.69, late=0.166, jain=0.892,
-                             useful=78.5, lateb=13.9, unus=7.6),
-        "SharedGreedy": dict(up=0.82, hit=0.42, ttff=0.66, late=0.147, jain=0.898,
-                             useful=73.6, lateb=11.2, unus=15.2, psnr=28.31),
-        "GC-noClosure": dict(up=0.79, late=0.161, unus=14.1),
-        "GC-noAggr":    dict(up=0.86, late=0.106, unus=6.3),
-        "GC-cacheOnly": dict(up=0.80, late=0.101, unus=6.1),
-        "GC-Full":      dict(up=0.74, hit=0.50, ttff=0.55, late=0.096, jain=0.926,
-                             useful=86.1, lateb=8.0, unus=5.9, psnr=29.02),
-    }
-    print("\n=== MAIN RESULT (measured vs paper) ===")
-    print(f"{'Policy':14s} {'up':>12s} {'hit':>11s} {'ttff':>11s} "
-          f"{'late':>12s} {'jain':>11s}")
+    print("\n=== MAIN RESULT ===")
+    print(f"{'Policy':14s} {'up':>8s} {'hit':>8s} {'ttff':>8s} "
+          f"{'late':>9s} {'jain':>8s}")
     for p in POLICIES:
-        a = agg[p]; q = paper.get(p, {})
-        def f(k, fmt="{:.2f}"):
-            mv = a[k][0]; pv = q.get(k)
-            return f"{fmt.format(mv)}/{fmt.format(pv) if pv is not None else '--'}"
-        print(f"{p:14s} {f('up'):>12s} {f('hit'):>11s} {f('ttff'):>11s} "
-              f"{f('late','{:.3f}'):>12s} {f('jain','{:.3f}'):>11s}")
-    print("\n=== DECOMPOSITION useful/late/unusable (measured vs paper) ===")
+        a = agg[p]
+        print(f"{p:14s} {a['up'][0]:8.2f} {a['hit'][0]:8.2f} {a['ttff'][0]:8.2f} "
+              f"{a['late'][0]:9.3f} {a['jain'][0]:8.3f}")
+    print("\n=== DECOMPOSITION useful/late/unusable (%) ===")
     for p in POLICIES:
-        a = agg[p]; q = paper.get(p, {})
-        print(f"{p:14s} useful={a['useful'][0]:5.1f}/{q.get('useful','--')} "
-              f"late={a['lateb'][0]:5.1f}/{q.get('lateb','--')} "
-              f"unus={a['unus'][0]:5.1f}/{q.get('unus','--')}")
-    print("\n=== QUALITY psnr / jain (measured vs paper) ===")
+        a = agg[p]
+        print(f"{p:14s} useful={a['useful'][0]:5.1f} "
+              f"late={a['lateb'][0]:5.1f} unus={a['unus'][0]:5.1f}")
+    print("\n=== QUALITY psnr / jain ===")
     for p in ["PerUser-HTTP", "SharedGreedy", "GC-Full"]:
-        a = agg[p]; q = paper.get(p, {})
-        print(f"{p:14s} psnr={a['psnr'][0]:5.2f}/{q.get('psnr','--')} "
-              f"jain={a['jain'][0]:.3f}/{q.get('jain','--')}")
+        a = agg[p]
+        print(f"{p:14s} psnr={a['psnr'][0]:5.2f} jain={a['jain'][0]:.3f}")
 
 
 if __name__ == "__main__":
