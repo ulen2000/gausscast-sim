@@ -11,9 +11,11 @@ dependencies. It is a compact, self-contained model focused on the **delivery
 mechanism** (shared base + supplements, closure-aware admission, request aggregation,
 asymmetric caching).
 
-> **Note.** This repository currently provides the Python trace-driven delivery simulator.
-> The Mini-NDN / NFD emulation harness (named-data forwarders and the colocated planning
-> proxy) is still being cleaned up and will be added in a future update.
+> **Note.** This repository currently provides the Python trace-driven delivery-mechanism
+> core. The remaining components of the full prototype — the Mini-NDN / NFD emulation
+> harness (named-data forwarders and the colocated planning proxy) and the layered-3DGS
+> rendering and quality-evaluation pipeline (PSNR / SSIM) — are being finalized and will be
+> added in a near-term update.
 
 ## What it models
 

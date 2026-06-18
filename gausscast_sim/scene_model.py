@@ -21,10 +21,11 @@ Modeling choices:
     and cached at block granularity.
   * DEPENDENCY (full-prefix closure): block (c, l) requires (c, 0..l-1). This is
     the conservative full-prefix dependency the sparsity study varies.
-  * Per-LAYER quality prior I(l): marginal PSNR gain of adding layer l, a
+  * Per-LAYER quality prior I(l): marginal quality gain of adding layer l, a
     non-increasing, diminishing-returns curve normalized to (0,1]. Used as the
     planner's layer utility and to relate the set of complete layers a user
-    holds to a per-layer quality level.
+    holds to a per-layer quality level. (Full rendered PSNR/SSIM evaluation is
+    provided by the rendering pipeline released with the complete prototype.)
 """
 import numpy as np
 

@@ -402,11 +402,12 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
 
         # ---- per-user quality accounting this cycle ----
         # For each visible cell, accumulate the viewport-weighted DEMANDED quality
-        # (PSNR at the target layer) and the ACHIEVED quality (PSNR at the highest
-        # layer rendered useful). The session quality is achieved/demanded mapped
-        # back through the PSNR curve. This ties model-derived PSNR directly to
-        # the fraction of demanded viewport content the policy renders -- the
-        # causal mechanism for the quality gain.
+        # level (at the target layer) and the ACHIEVED quality level (at the
+        # highest layer rendered useful). The session quality level is
+        # achieved/demanded mapped back through the per-layer quality curve,
+        # tying the reported quality level to the fraction of demanded viewport
+        # content the policy renders. (Full rendered PSNR/SSIM evaluation is part
+        # of the rendering pipeline released with the complete prototype.)
         for u, tgt in user_targets.items():
             for c, target in tgt.items():
                 k = -1

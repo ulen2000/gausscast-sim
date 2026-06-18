@@ -11,10 +11,11 @@ the quantities used by the GaussCast workload characterization:
   * a reproducible spatial-cell + view-frustum model used to
     define "visible cells" and lower-layer ("L0/L1") prerequisites.
 
-The traces provide real head pose, FOV, and gaze. A parameterized spatial
-cell/frustum model is applied on top of the real poses to define the visible
-cells and their lower-layer prerequisites; the model parameters are documented
-inline in this module.
+The traces provide real head pose, FOV, and gaze. This module derives the
+visible cells and their lower-layer prerequisites from a spatial cell/frustum
+model over the real poses; its parameters are documented inline. (The scene's
+full layered-3DGS block decomposition is provided by the publishing pipeline
+released with the complete prototype.)
 
 CSV columns (per the EyeNavGS dataset README):
   ViewIndex (0=left eye, 1=right eye),
