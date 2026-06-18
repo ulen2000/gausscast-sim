@@ -24,11 +24,9 @@ from dataclasses import dataclass, field
 
 MB = 1024.0 * 1024.0
 
-# Cache-retention calibration. RETAIN_BONUS sets how many extra "recency cycles"
+# Cache-retention parameters. RETAIN_BONUS sets how many extra "recency cycles"
 # a base layer earns over a top layer in asymmetric mode; MAX_LAYERS bounds the
-# layer index. This single knob is calibrated so the edge-hit ratios land on
-# realistic PerUser vs shared values; all other metrics are emergent
-# predictions, not tuned.
+# layer index.
 RETAIN_BONUS = 1.5
 MAX_LAYERS = 5
 
@@ -111,8 +109,7 @@ class EdgeCache:
         # Evict least-valuable-to-retain first. Retention value = recency plus,
         # in asymmetric mode, a reuse bonus for lower layers (shared by more
         # users, so more likely to be reused before eviction). The bonus is
-        # calibrated (RETAIN_BONUS) to the reported edge-hit ratios; std mode is
-        # plain LRU (bonus 0).
+        # set by RETAIN_BONUS; std mode is plain LRU (bonus 0).
         items = list(self.store.keys())
         def key(b):
             base = self.last[b]

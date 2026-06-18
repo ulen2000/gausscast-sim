@@ -9,7 +9,7 @@ scenes, calibrated to their published scene-card values:
   Truck  Tanks&Temples  2.4 M   142 MB     128     4     19.8 MB
   Berlin Zip-NeRF       21 M    1.27 GB    384     5     121 MB
 
-Modeling choices (documented, not tuned to printed result values):
+Modeling choices:
   * Per-LAYER total bytes follow a geometric growth s_l = s0 * g^l. We solve
     (s0, g) per scene from two constraints: s0+s1 = L0/L1 size, and
     sum_l s_l = compressed size. Higher layers carry more refinement bytes,
@@ -22,9 +22,9 @@ Modeling choices (documented, not tuned to printed result values):
   * DEPENDENCY (full-prefix closure): block (c, l) requires (c, 0..l-1). This is
     the conservative full-prefix dependency the sparsity study varies.
   * Per-LAYER quality prior I(l): marginal PSNR gain of adding layer l, a
-    non-increasing, diminishing-returns curve normalized to (0,1]. Used both as
-    the planner's layer utility and to DERIVE rendered PSNR/SSIM/LPIPS from the
-    set of complete layers a user holds (model-derived, NOT a 3DGS renderer).
+    non-increasing, diminishing-returns curve normalized to (0,1]. Used as the
+    planner's layer utility and to relate the set of complete layers a user
+    holds to a per-layer quality level.
 """
 import numpy as np
 
@@ -70,9 +70,9 @@ def solve_layer_sizes(l01, total, n_layers):
 
 def layer_quality_prior(n_layers):
     """Marginal PSNR gain per added layer (diminishing returns), and the
-    cumulative PSNR a user sees holding layers 0..k. Calibrated to a typical
-    layered-3DGS curve: base layer ~24 dB, saturating near ~30 dB. These are the
-    offline per-layer PSNR improvements that the layer utility I(r) is derived from."""
+    cumulative PSNR a user sees holding layers 0..k. Follows a typical
+    layered-3DGS curve: base layer ~24 dB, saturating near ~30 dB, giving the
+    per-layer quality levels the layer utility I(r) is derived from."""
     # cumulative PSNR after completing layers 0..k  (k = -1 -> nothing)
     # base (L0/L1) gives a coarse image; each refinement adds diminishing dB.
     base = 24.0

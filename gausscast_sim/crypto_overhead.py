@@ -14,8 +14,8 @@ Two authentication strategies are modeled from the SAME measured primitives:
     the manifest fanout.
 
 Everything printed is derived directly from the measured per-operation costs and
-the (documented) manifest fanout. There are no values fitted to any external
-target: change `--fanout` or `--block-mb` and the numbers move accordingly.
+the manifest fanout: change `--fanout` or `--block-mb` and the numbers move
+accordingly.
 """
 import os
 import time

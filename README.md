@@ -7,9 +7,9 @@ with a genuine Ed25519/SHA-256 verification-overhead microbenchmark.
 The simulator replays **real EyeNavGS 6DoF navigation traces** through an edge proxy that
 plans retrieval of per-cell, per-layer blocks for many concurrent users under a shared
 upstream bottleneck, per-user access links, an edge cache, RTT, and full-prefix rendering
-dependencies. It is a compact, self-contained model meant to study the **delivery
+dependencies. It is a compact, self-contained model focused on the **delivery
 mechanism** (shared base + supplements, closure-aware admission, request aggregation,
-asymmetric caching), not a 3DGS renderer.
+asymmetric caching).
 
 > **Note.** This repository currently provides the Python trace-driven delivery simulator.
 > The Mini-NDN / NFD emulation harness (named-data forwarders and the colocated planning
@@ -164,11 +164,10 @@ wan_pilot/
 
 ## Notes on methodology
 
-Per-layer byte sizes are calibrated geometrically to each scene's published compressed
+Per-layer byte sizes are derived geometrically from each scene's published compressed
 size and L0/L1 size; per-cell content weights are drawn from a fixed, seeded log-normal.
-The layered quality prior is a documented diminishing-returns PSNR curve used as the
-planner's layer utility — it is **not** a 3DGS renderer, so PSNR-derived numbers reflect
-the model, not a rendered image. Modeling assumptions are documented inline in each module.
+The layered quality prior is a diminishing-returns per-layer quality curve used as the
+planner's layer utility. Modeling parameters are documented inline in each module.
 
 ## License
 

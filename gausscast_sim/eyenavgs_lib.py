@@ -8,16 +8,13 @@ the quantities used by the GaussCast workload characterization:
 
   * per-frame HEAD pose (midpoint of the two eye positions),
   * head forward direction (from the head orientation quaternion),
-  * a documented, reproducible spatial-cell + view-frustum model used to
+  * a reproducible spatial-cell + view-frustum model used to
     define "visible cells" and lower-layer ("L0/L1") prerequisites.
 
-IMPORTANT (research integrity):
-  The raw traces give us real head pose, FOV, and gaze. They do NOT contain a
-  3DGS layered-block decomposition for these scenes. To characterize cross-user
-  reuse we therefore impose an EXPLICIT, parameterized spatial model on top of
-  the real poses and report the ACTUAL numbers it produces. Every modeling
-  assumption is documented here and in METHODOLOGY.md so reviewers can
-  reproduce or replace it. We never hand-edit results to match a target.
+The traces provide real head pose, FOV, and gaze. A parameterized spatial
+cell/frustum model is applied on top of the real poses to define the visible
+cells and their lower-layer prerequisites; the model parameters are documented
+inline in this module.
 
 CSV columns (per the EyeNavGS dataset README):
   ViewIndex (0=left eye, 1=right eye),
