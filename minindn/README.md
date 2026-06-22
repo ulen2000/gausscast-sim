@@ -116,10 +116,12 @@ paper describes.
 
 ## Relationship to the simulator
 
-This harness is a **mechanism demonstration** on a real NDN dataplane, and is
-designed to complement the quantitative network results rather than restate them.
-End-to-end byte ratios, edge hit ratios, late-miss ratios, and Jain fairness over
-full-scale scenes and real EyeNavGS traces are produced by
-[`../gausscast_sim`](../gausscast_sim). The two share the same block model,
-naming, dependency closures, and planning logic.
+This harness runs the GaussCast retrieval mechanism on a **real NDN dataplane**,
+validating on live NFD forwarders the behaviors the simulator accounts for: named
+layered blocks, PIT Interest aggregation, Content Store reuse, digest-linked
+verification, and closure-aware planning. End-to-end byte ratios, edge hit ratios,
+late-miss ratios, and Jain fairness over full-scale scenes and real EyeNavGS traces
+are produced by [`../gausscast_sim`](../gausscast_sim). The two share the same block
+model, naming, dependency closures, and planning logic, so the dataplane results and
+the trace-driven results corroborate one another.
 

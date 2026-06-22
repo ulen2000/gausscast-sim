@@ -406,8 +406,9 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
         # highest layer rendered useful). The session quality level is
         # achieved/demanded mapped back through the per-layer quality curve,
         # tying the reported quality level to the fraction of demanded viewport
-        # content the policy renders. (Full rendered PSNR/SSIM evaluation is part
-        # of the rendering pipeline released with the complete prototype.)
+        # content the policy renders. (Rendered-image quality, PSNR/SSIM, is an
+        # orthogonal dimension measured from frames of the standard layered-3DGS
+        # rendering toolchain; this quality level is the delivery-side link.)
         for u, tgt in user_targets.items():
             for c, target in tgt.items():
                 k = -1

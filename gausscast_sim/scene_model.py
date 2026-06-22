@@ -24,8 +24,9 @@ Modeling choices:
   * Per-LAYER quality prior I(l): marginal quality gain of adding layer l, a
     non-increasing, diminishing-returns curve normalized to (0,1]. Used as the
     planner's layer utility and to relate the set of complete layers a user
-    holds to a per-layer quality level. (Full rendered PSNR/SSIM evaluation is
-    provided by the rendering pipeline released with the complete prototype.)
+    holds to a per-layer quality level. (Rendered-image quality, PSNR/SSIM, is an
+    orthogonal dimension measured from frames of the standard layered-3DGS
+    rendering toolchain; this prior is the delivery-side link to it.)
 """
 import numpy as np
 

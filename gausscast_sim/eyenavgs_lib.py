@@ -14,8 +14,8 @@ the quantities used by the GaussCast workload characterization:
 The traces provide real head pose, FOV, and gaze. This module derives the
 visible cells and their lower-layer prerequisites from a spatial cell/frustum
 model over the real poses; its parameters are documented inline. (The scene's
-full layered-3DGS block decomposition is provided by the publishing pipeline
-released with the complete prototype.)
+layered-3DGS block decomposition is produced by the standard layered-3DGS
+publishing toolchain; this module models the demand side over the real traces.)
 
 CSV columns (per the EyeNavGS dataset README):
   ViewIndex (0=left eye, 1=right eye),

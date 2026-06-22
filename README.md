@@ -7,17 +7,28 @@ with a genuine Ed25519/SHA-256 verification-overhead microbenchmark.
 The simulator replays **real EyeNavGS 6DoF navigation traces** through an edge proxy that
 plans retrieval of per-cell, per-layer blocks for many concurrent users under a shared
 upstream bottleneck, per-user access links, an edge cache, RTT, and full-prefix rendering
-dependencies. It is a compact, self-contained model focused on the **delivery
+dependencies. It is a self-contained, end-to-end model of the **delivery
 mechanism** (shared base + supplements, closure-aware admission, request aggregation,
 asymmetric caching).
 
-> **Note.** This repository provides the Python trace-driven delivery-mechanism
-> core together with a **Mini-NDN / NFD emulation harness** (see
-> [`minindn/`](minindn)) that runs the shared-block retrieval mechanism over real
-> NFD forwarders — named layered blocks, PIT Interest aggregation, Content Store
-> reuse, digest-linked verification, and closure-aware planning. The layered-3DGS
-> rendering and quality-evaluation pipeline (PSNR / SSIM) is being finalized and
-> will be added in a near-term update.
+> **Scope.** This repository is the complete evaluation artifact for the
+> *delivery mechanism*: the trace-driven, cycle-based simulator (upstream-byte,
+> cache-hit, TTFF, late-miss, and fairness accounting over real EyeNavGS traces),
+> a **Mini-NDN / NFD emulation harness** ([`minindn/`](minindn)) that runs the
+> same mechanism over real NFD forwarders (named layered blocks, PIT Interest
+> aggregation, Content Store reuse, digest-linked verification, closure-aware
+> planning), a **cross-region WAN pilot** ([`wan_pilot/`](wan_pilot)) over a real
+> wide-area link, and a **genuine Ed25519/SHA-256 verification-overhead
+> microbenchmark**. Rendered-image quality (PSNR / SSIM) is an orthogonal
+> dimension: it is measured from frames produced by the standard layered-3DGS
+> rendering toolchain ([LapisGS][lapisgs] / [L3GS][l3gs] / [LTS][lts]) and is
+> reported separately in the paper. The simulator already exposes the per-layer
+> quality prior that links delivered layers to that quality dimension, so the two
+> are cleanly decoupled.
+
+[lapisgs]: https://arxiv.org/abs/2408.14823
+[l3gs]: https://arxiv.org/abs/2504.05517
+[lts]: https://doi.org/10.1145/3712676.3714445
 
 ## What it models
 
