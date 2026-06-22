@@ -11,11 +11,13 @@ dependencies. It is a compact, self-contained model focused on the **delivery
 mechanism** (shared base + supplements, closure-aware admission, request aggregation,
 asymmetric caching).
 
-> **Note.** This repository currently provides the Python trace-driven delivery-mechanism
-> core. The remaining components of the full prototype — the Mini-NDN / NFD emulation
-> harness (named-data forwarders and the colocated planning proxy) and the layered-3DGS
-> rendering and quality-evaluation pipeline (PSNR / SSIM) — are being finalized and will be
-> added in a near-term update.
+> **Note.** This repository provides the Python trace-driven delivery-mechanism
+> core together with a **Mini-NDN / NFD emulation harness** (see
+> [`minindn/`](minindn)) that runs the shared-block retrieval mechanism over real
+> NFD forwarders — named layered blocks, PIT Interest aggregation, Content Store
+> reuse, digest-linked verification, and closure-aware planning. The layered-3DGS
+> rendering and quality-evaluation pipeline (PSNR / SSIM) is being finalized and
+> will be added in a near-term update.
 
 ## What it models
 
@@ -162,6 +164,13 @@ wan_pilot/
   wan_origin.py         origin HTTP server (stdlib only, deploy to region A)
   wan_edge.py           edge client: measures RTT / throughput / ratio / TTFF
   README.md             two-region deployment guide
+minindn/
+  gc_blocks.py          cell/layer/chunk byte model + digest-linked NDN naming
+  gc_planner.py         closure-aware two-stage planner + synthetic demand
+  gc_producer.py        origin producer: serves digest-named segment Data
+  gc_consumer.py        client: fetches a plan and verifies each segment digest
+  gc_experiment.py      Mini-NDN/NFD orchestrator over the three-tier tree
+  README.md             Mini-NDN harness guide
 ```
 
 ## Notes on methodology
