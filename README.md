@@ -52,11 +52,21 @@ traces, the proxy:
 |---|---|---|---|---|
 | `PerUser-HTTP` | – | – | – | LRU |
 | `PerUser-ICN`  | – | ✓ | – | LRU |
+| `DependencyAware-PerUser` | – | ✓ | ✓ | LRU |
 | `SharedGreedy` | ✓ | ✓ | – | asym |
 | `GC-noClosure` | ✓ | ✓ | – | asym |
 | `GC-noAggr`    | ✓ | – | ✓ | asym |
 | `GC-cacheOnly` | ✓ | – | ✓ | asym |
 | `GC-Full`      | ✓ | ✓ | ✓ | asym |
+| `OracleSharedPrereq` | ✓ (hindsight) | ✓ | ✓ | asym |
+
+`DependencyAware-PerUser` adds closure-aware admission to a per-user (no
+cross-user sharing) substrate, completing a sharing × closure 2×2 ablation that
+separates the quality gain from dependency closure alone from the gain that
+needs cross-user sharing. `OracleSharedPrereq` is an idealized upper bound in
+which each distinct prerequisite block crosses the shared upstream link at most
+once over the whole run (perfect hindsight dedup), bounding the achievable
+upstream saving from prerequisite sharing.
 
 ## Install
 

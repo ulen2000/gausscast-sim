@@ -55,6 +55,9 @@ class Policy:
     eta_cent: float = 0.15           # closure-centrality weight in shared score
     use_prediction: bool = False     # plan on predicted-visible set (else oracle)
     budget_ratio: float = 1.0        # base-vs-supplement shared budget split knob
+    oracle_prereq: bool = False      # idealized: each distinct block crosses the
+                                     # upstream link at most once over the whole
+                                     # run (upper bound on prerequisite sharing)
 
 
 # Named delivery policies
@@ -64,6 +67,13 @@ def policy(name):
                                 closure=False, cache_mode="std"),
         "PerUser-ICN":   Policy("PerUser-ICN", shared=False, aggregate=True,
                                 closure=False, cache_mode="std"),
+        # Per-user progressive delivery with closure-aware admission but NO
+        # cross-user shared planning: isolates whether the quality/useful-byte
+        # gain comes from dependency closure alone or from closure PLUS sharing.
+        # Same per-user substrate as PerUser-ICN (PIT aggregation, std cache),
+        # with closure admission added.
+        "DependencyAware-PerUser": Policy("DependencyAware-PerUser", shared=False,
+                                aggregate=True, closure=True, cache_mode="std"),
         "SharedGreedy":  Policy("SharedGreedy", shared=True, aggregate=True,
                                 closure=False, cache_mode="asym"),
         "GC-noClosure":  Policy("GC-noClosure", shared=True, aggregate=True,
@@ -74,6 +84,13 @@ def policy(name):
                                 closure=True, cache_mode="asym"),
         "GC-Full":       Policy("GC-Full", shared=True, aggregate=True,
                                 closure=True, cache_mode="asym"),
+        # Idealized upper bound: every lower-layer prerequisite is fetched at most
+        # once when at least one user needs it (perfect prerequisite dedup with
+        # hindsight), then the same per-user supplement policy as PerUser. Bounds
+        # the maximum achievable upstream saving from prerequisite sharing.
+        "OracleSharedPrereq": Policy("OracleSharedPrereq", shared=True,
+                                aggregate=True, closure=True, cache_mode="asym",
+                                oracle_prereq=True),
     }
     return P[name]
 
@@ -176,6 +193,13 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
 
     have = {u: set() for u in users}      # blocks user already holds (local L_u)
     rendered = {u: set() for u in users}  # blocks delivered useful (renderable)
+    # OracleSharedPrereq: idealized hindsight prerequisite dedup. A distinct block
+    # crosses the shared upstream link at most ONCE over the whole run; any later
+    # cycle that needs it (after the edge evicted it under capacity) is treated as
+    # already paid for. This is an upper bound on the saving from prerequisite
+    # sharing -- it cannot be realized online -- used only to contextualize how
+    # close GC-Full's measured upstream is to the achievable optimum.
+    oracle_pulled = set()                 # blocks already charged upstream (global)
     # metrics
     upstream_bytes = 0.0
     delivered_bytes = 0.0
@@ -326,10 +350,19 @@ def run(demand, users, net: Net, pol: Policy, seed=0, n_edges=4,
                 arrival[b] = p + net.rtt_s + interval
                 return True
             ndup = 1 if pol.aggregate else 1 + int(round((nusers - 1) * alpha))
+            # Oracle: a distinct block already pulled in ANY prior cycle is free
+            # (perfect hindsight dedup across the whole run); only its first global
+            # pull is charged at the upstream link.
+            if pol.oracle_prereq and b in oracle_pulled:
+                arrival[b] = p + net.rtt_s + interval
+                cache.put(b, nb, l, ci)
+                return True
             cum_pull += nb * ndup
             upstream_bytes += nb * ndup
             arrival[b] = p + net.rtt_s + cum_pull / rate
             cache.put(b, nb, l, ci)
+            if pol.oracle_prereq:
+                oracle_pulled.add(b)
             if origin_trace is not None:
                 origin_trace.append((ci, c, l, float(nb * ndup)))
             return True

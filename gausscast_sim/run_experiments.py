@@ -20,8 +20,9 @@ from .demand import Demand
 from . import delivery_sim as S
 
 SCENES = ["room", "truck", "berlin"]
-POLICIES = ["PerUser-HTTP", "PerUser-ICN", "SharedGreedy", "GC-noClosure",
-            "GC-noAggr", "GC-cacheOnly", "GC-Full"]
+POLICIES = ["PerUser-HTTP", "PerUser-ICN", "DependencyAware-PerUser",
+            "SharedGreedy", "GC-noClosure", "GC-noAggr", "GC-cacheOnly",
+            "GC-Full", "OracleSharedPrereq"]
 TIERS = [(10.0, 150.0), (20.0, 225.0), (30.0, 300.0)]
 N_SEEDS = 10
 N_USERS = 16
